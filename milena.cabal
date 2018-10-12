@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2faa8f37a431f4f1c343faf88d70eb0df20eeab4ec60b3f88a2c3cfc6fee68ca
+-- hash: d175af12f932afa2f8ff8fa8152f1c84ddbcd3d63664b5ef209ba6721be7012e
 
 name:           milena
-version:        0.5.2.1
+version:        0.5.2.3
 synopsis:       A Kafka client for Haskell.
 description:    A Kafka client for Haskell.
                 The protocol module is stable (the only changes will be to support changes in the Kafka protocol). The API is functional but subject to change.
@@ -43,7 +43,7 @@ library
     , monad-control >=1.0 && <1.1
     , mtl >=2.1 && <2.3
     , murmur-hash >=0.1.0.8 && <0.2
-    , network >=2.4 && <2.8
+    , network >=2.4 && <3.0
     , random >=1.0 && <1.2
     , resource-pool >=0.2.3.2 && <0.3
     , semigroups >=0.16.2.2 && <0.19
