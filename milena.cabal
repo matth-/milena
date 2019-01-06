@@ -1,11 +1,13 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d175af12f932afa2f8ff8fa8152f1c84ddbcd3d63664b5ef209ba6721be7012e
+-- hash: 3bb58d95694565345dd96c8f19c605682638205f778b92ae231d3aa2a0ef69e1
 
 name:           milena
-version:        0.5.2.3
+version:        0.5.2.4
 synopsis:       A Kafka client for Haskell.
 description:    A Kafka client for Haskell.
                 The protocol module is stable (the only changes will be to support changes in the Kafka protocol). The API is functional but subject to change.
@@ -20,10 +22,9 @@ license:        BSD3
 license-file:   LICENSE
 tested-with:    GHC==7.10.3 GHC==8.0.1
 build-type:     Simple
-cabal-version:  >= 1.10
 extra-source-files:
-    CHANGELOG.md
     README.md
+    CHANGELOG.md
 
 source-repository head
   type: git
@@ -36,7 +37,7 @@ library
       base >=4.7 && <5
     , bytestring >=0.10 && <0.11
     , cereal >=0.4 && <0.6
-    , containers >=0.5 && <0.6
+    , containers >=0.5 && <0.7
     , digest >=0.0.1.0 && <0.1
     , lens >=4.4 && <4.20
     , lifted-base >=0.2.3.6 && <0.3
