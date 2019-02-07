@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3bb58d95694565345dd96c8f19c605682638205f778b92ae231d3aa2a0ef69e1
+-- hash: 8060a8b3f6bf4aad48a041ce65dd55877fe0f1bd5353f32359bae70b010f2843
 
 name:           milena
-version:        0.5.2.4
+version:        0.5.3.0
 synopsis:       A Kafka client for Haskell.
 description:    A Kafka client for Haskell.
                 The protocol module is stable (the only changes will be to support changes in the Kafka protocol). The API is functional but subject to change.
