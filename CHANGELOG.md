@@ -1,3 +1,7 @@
+0.5.3.0
+
+* Add Create Topic support (https://github.com/adamflott/milena/pull/6). Thanks matth!
+
 0.5.2.3
 
 * Bump network upper bounds
