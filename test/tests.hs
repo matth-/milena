@@ -11,7 +11,7 @@ import Control.Monad.Trans (liftIO)
 import Network.Kafka
 import Network.Kafka.Consumer
 import Network.Kafka.Producer
-import Network.Kafka.Protocol (ProduceResponse(..), KafkaError(..), CompressionCodec(..), CreateTopicsResponse(..))
+import Network.Kafka.Protocol (ProduceResponse(..), KafkaError(..), CompressionCodec(..), CreateTopicsResponse(..), Offset(..), OffsetCommitResponse(..), OffsetFetchResponse(..), ConsumerGroup(..), Partition(..), KafkaString(..), Metadata(..))
 import Test.Tasty
 import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
@@ -136,6 +136,52 @@ specs = do
         stateAddresses %= NE.cons ("localhost", 9092)
         createTopic (createTopicsRequest t 13 1 [] [])
       result `shouldBe` (Right $ TopicsResp [(t, NoError)])
+
+  describe "can commit messages" $ do
+    let t = "commit-offset"
+
+    it "create a topic" $ do
+      topicCreation <- run $ do
+        stateAddresses %= NE.cons ("localhost", 9092)
+        createTopic (createTopicsRequest t 3 1 [] [])
+      topicCreation `shouldBe` (Right $ TopicsResp [(t, TopicAlreadyExists)])
+
+    it "commit offset 5 to partition 0 for consumer group \"group1\"" $ do
+      commitOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          commitOffset (commitOffsetRequest (ConsumerGroup "group1") t 0 (Offset 5))
+      commitOff `shouldBe` Right (OffsetCommitResp [(t,[(Partition 0,NoError)])])
+
+    it "commit offset 15 to partition 1 for consumer group \"group1\"" $ do
+      commitOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          commitOffset (commitOffsetRequest (ConsumerGroup "group1") t 1 (Offset 15))
+      commitOff `shouldBe` Right (OffsetCommitResp [(t,[(Partition 1,NoError)])])
+
+    it "commit offset 10 to partition 2 for consumer group \"group2\"" $ do
+      commitOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          commitOffset (commitOffsetRequest (ConsumerGroup "group2") t 2 10)
+      commitOff `shouldSatisfy` isRight
+
+    it "fetch offset from partition 0 for \"group1\"" $ do
+      fetchOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          fetchOffset (fetchOffsetRequest (ConsumerGroup "group1") t 0)
+      fetchOff `shouldBe` Right (OffsetFetchResp [(t,[(Partition 0, Offset 5,Metadata (KString {_kString = ""}),NoError)])])
+
+    it "fetch offset from partition 0 for \"group2\"" $ do
+      fetchOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          fetchOffset (fetchOffsetRequest (ConsumerGroup "group2") t 0)
+      fetchOff `shouldBe` Right (OffsetFetchResp [(t,[(Partition 0, Offset (-1),Metadata (KString {_kString = ""}),UnknownTopicOrPartition)])])
+
+    it "note that getLastOffset is unchanged" $ do
+      getLastOff <- run $ do
+          stateAddresses %= NE.cons ("localhost", 9092)
+          getLastOffset EarliestTime 0 t
+      getLastOff `shouldSatisfy` isRight
+      getLastOff `shouldBe` (Right $ Offset 0)
 
 prop :: Testable prop => String -> prop -> SpecWith ()
 prop s = it s . property

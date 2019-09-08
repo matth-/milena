@@ -203,6 +203,35 @@ createTopicsRequest topic partition replication_factor replica_assignment config
         ([(topic, partition, replication_factor, replica_assignment, config)], defaultRequestTimeout)
 
 
+fetchOffset :: Kafka m => OffsetFetchRequest -> m OffsetFetchResponse
+fetchOffset request = withAnyHandle $ flip fetchOffset' request
+
+fetchOffset' :: Kafka m => Handle -> OffsetFetchRequest -> m OffsetFetchResponse
+fetchOffset' h request = makeRequest h $ OffsetFetchRR request
+
+fetchOffsetRequest ::
+     ConsumerGroup -> TopicName -> Partition -> OffsetFetchRequest
+fetchOffsetRequest consumerGroup topic partition =
+  OffsetFetchReq
+        (consumerGroup, [(topic, [partition])])
+
+
+commitOffset :: Kafka m => OffsetCommitRequest -> m OffsetCommitResponse
+commitOffset request = withAnyHandle $ flip commitOffset' request
+
+commitOffset' ::
+     Kafka m => Handle -> OffsetCommitRequest -> m OffsetCommitResponse
+commitOffset' h request = makeRequest h $ OffsetCommitRR request
+
+commitOffsetRequest ::
+     ConsumerGroup -> TopicName -> Partition -> Offset -> OffsetCommitRequest
+commitOffsetRequest consumerGroup topic partition offset =
+  let time = -1
+      metadata_ = Metadata "milena"
+   in OffsetCommitReq
+        (consumerGroup, [(topic, [(partition, offset, time, metadata_)])])
+
+
 getTopicPartitionLeader :: Kafka m => TopicName -> Partition -> m Broker
 getTopicPartitionLeader t p = do
   let s = stateTopicMetadata . at t
