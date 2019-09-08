@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.1.
+-- This file has been generated from package.yaml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8060a8b3f6bf4aad48a041ce65dd55877fe0f1bd5353f32359bae70b010f2843
+-- hash: f6ed678a32514d1ecfa6bf87b5fe3c795a58c22b4171257ceb6ef3c31e80ba3b
 
 name:           milena
-version:        0.5.3.0
+version:        0.5.4.0
 synopsis:       A Kafka client for Haskell.
 description:    A Kafka client for Haskell.
                 The protocol module is stable (the only changes will be to support changes in the Kafka protocol). The API is functional but subject to change.
@@ -16,7 +16,7 @@ stability:      alpha
 homepage:       https://github.com/adamflott/milena.git#readme
 bug-reports:    https://github.com/adamflott/milena.git/issues
 author:         Tyler Holien
-maintainer:     adam@adamflott.com
+maintainer:     Adam Flott <adam@adamflott.com>
 copyright:      2014, Tyler Holien
 license:        BSD3
 license-file:   LICENSE

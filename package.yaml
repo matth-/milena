@@ -7,7 +7,7 @@ description: ! 'A Kafka client for Haskell.
   Kafka protocol). The API is functional but subject to change.'
 category: Network
 author: Tyler Holien
-maintainer: adam@adamflott.com
+maintainer: Adam Flott <adam@adamflott.com>
 copyright: 2014, Tyler Holien
 license: BSD3
 github: adamflott/milena.git
