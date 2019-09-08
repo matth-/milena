@@ -1,3 +1,9 @@
+0.5.4.0
+
+* commitOffset and fetchOffset to the API (https://github.com/adamflott/milena/pull/7)
+* Add Delete Topic support
+* Make tests pass on multiple invocations
+
 0.5.3.0
 
 * Add Create Topic support (https://github.com/adamflott/milena/pull/6). Thanks matth!
