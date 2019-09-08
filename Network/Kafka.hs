@@ -202,6 +202,15 @@ createTopicsRequest topic partition replication_factor replica_assignment config
     CreateTopicsReq
         ([(topic, partition, replication_factor, replica_assignment, config)], defaultRequestTimeout)
 
+deleteTopic :: Kafka m => DeleteTopicsRequest -> m DeleteTopicsResponse
+deleteTopic request = withAnyHandle $ flip deleteTopic' request
+
+deleteTopic' :: Kafka m => Handle -> DeleteTopicsRequest -> m DeleteTopicsResponse
+deleteTopic' h request = makeRequest h $ DeleteTopicsRR request
+
+deleteTopicsRequest :: TopicName -> DeleteTopicsRequest
+deleteTopicsRequest topic = DeleteTopicsReq ([topic], defaultRequestTimeout)
+
 
 fetchOffset :: Kafka m => OffsetFetchRequest -> m OffsetFetchResponse
 fetchOffset request = withAnyHandle $ flip fetchOffset' request
