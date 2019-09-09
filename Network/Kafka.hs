@@ -1,7 +1,17 @@
 module Network.Kafka where
 
+import Prelude
+
+-- base
 import Control.Applicative
 import Control.Exception (Exception, IOException)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.Monoid ((<>))
+import GHC.Generics (Generic)
+import System.IO
+
+-- Hackage
 import Control.Exception.Lifted (catch)
 import Control.Lens
 import Control.Monad.Trans.Control (MonadBaseControl)
@@ -10,18 +20,13 @@ import Control.Monad.Except (ExceptT(..), runExceptT, MonadError(..))
 import Control.Monad.Trans.State
 import Control.Monad.State.Class (MonadState)
 import Data.ByteString.Char8 (ByteString)
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE
-import Data.Monoid ((<>))
 import qualified Data.Pool as Pool
-import GHC.Generics (Generic)
-import System.IO
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Network
-import Prelude
 
+-- local
 import Network.Kafka.Protocol
 
 type KafkaAddress = (Host, Port)
@@ -224,6 +229,16 @@ fetchOffsetRequest consumerGroup topic partition =
   OffsetFetchReq
         (consumerGroup, [(topic, [partition])])
 
+-- | Send a heartbeat request.
+heartbeat :: Kafka m => HeartbeatRequest -> m HeartbeatResponse
+heartbeat request = withAnyHandle $ flip heartbeat' request
+
+heartbeat' :: Kafka m => Handle -> HeartbeatRequest -> m HeartbeatResponse
+heartbeat' h request = makeRequest h $ HeartbeatRR request
+
+-- | Create a heartbeat request.
+heartbeatRequest :: GroupId -> GenerationId -> MemberId -> HeartbeatRequest
+heartbeatRequest genId gId memId = HeartbeatReq (genId, gId, memId)
 
 commitOffset :: Kafka m => OffsetCommitRequest -> m OffsetCommitResponse
 commitOffset request = withAnyHandle $ flip commitOffset' request

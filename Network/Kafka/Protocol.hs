@@ -34,6 +34,7 @@ data ReqResp a where
   ProduceRR  :: MonadIO m => ProduceRequest  -> ReqResp (m ProduceResponse)
   FetchRR    :: MonadIO m => FetchRequest    -> ReqResp (m FetchResponse)
   OffsetRR   :: MonadIO m => OffsetRequest   -> ReqResp (m OffsetResponse)
+  HeartbeatRR :: MonadIO m => HeartbeatRequest -> ReqResp (m HeartbeatResponse)
   TopicsRR   :: MonadIO m => CreateTopicsRequest -> ReqResp (m CreateTopicsResponse)
   DeleteTopicsRR :: MonadIO m => DeleteTopicsRequest -> ReqResp (m DeleteTopicsResponse)
   OffsetCommitRR :: MonadIO m => OffsetCommitRequest -> ReqResp (m OffsetCommitResponse)
@@ -59,6 +60,7 @@ doRequest clientId correlationId h (MetadataRR req) = doRequest' correlationId h
 doRequest clientId correlationId h (ProduceRR req)  = doRequest' correlationId h $ Request (correlationId, clientId, ProduceRequest req)
 doRequest clientId correlationId h (FetchRR req)    = doRequest' correlationId h $ Request (correlationId, clientId, FetchRequest req)
 doRequest clientId correlationId h (OffsetRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, OffsetRequest req)
+doRequest clientId correlationId h (HeartbeatRR req)= doRequest' correlationId h $ Request (correlationId, clientId, HeartbeatRequest req)
 doRequest clientId correlationId h (TopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, CreateTopicsRequest req)
 doRequest clientId correlationId h (DeleteTopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, DeleteTopicsRequest req)
 doRequest clientId correlationId h (OffsetCommitRR req) = doRequest' correlationId h $ Request (correlationId, clientId, OffsetCommitRequest req)
@@ -83,6 +85,7 @@ data RequestMessage = MetadataRequest MetadataRequest
                     | OffsetRequest OffsetRequest
                     | OffsetCommitRequest OffsetCommitRequest
                     | OffsetFetchRequest OffsetFetchRequest
+                    | HeartbeatRequest HeartbeatRequest
                     | GroupCoordinatorRequest GroupCoordinatorRequest
                     | CreateTopicsRequest CreateTopicsRequest
                     | DeleteTopicsRequest DeleteTopicsRequest
@@ -120,6 +123,11 @@ newtype CreateTopicsResponse =
 newtype DeleteTopicsResponse =
   DeleteTopicsResp { _deleteTopicsResponseFields :: [(TopicName, KafkaError)] }
   deriving (Show, Eq, Deserializable, Serializable, Generic)
+
+newtype HeartbeatResponse =
+  HeartbeatResp { _heartbeatResponseFields :: KafkaError }
+  deriving (Show, Eq, Deserializable, Serializable, Generic)
+
 
 newtype MetadataResponse = MetadataResp { _metadataResponseFields :: ([Broker], [TopicMetadata]) } deriving (Show, Eq, Deserializable, Generic)
 newtype Broker = Broker { _brokerFields :: (NodeId, Host, Port) } deriving (Show, Eq, Ord, Deserializable, Generic)
@@ -188,9 +196,21 @@ data ResponseMessage = MetadataResponse MetadataResponse
                      | OffsetResponse OffsetResponse
                      | OffsetCommitResponse OffsetCommitResponse
                      | OffsetFetchResponse OffsetFetchResponse
+                     | HeartbeatResponse HeartbeatResponse
                      | GroupCoordinatorResponse GroupCoordinatorResponse
                      | CreateTopicsResponse CreateTopicsResponse
+                     | DeleteTopicsResponse DeleteTopicsResponse
                      deriving (Show, Eq, Generic)
+
+
+newtype GroupId = GroupId { _groupId :: KafkaString } deriving (Show, Eq, Serializable, Generic, IsString)
+
+newtype GenerationId = GenerationId { _genrationId :: Int32 } deriving (Show, Eq, Enum, Num, Ord, Real, Integral, Generic, Serializable)
+
+newtype MemberId = MemberId { _membderId :: KafkaString } deriving (Show, Eq, Generic, Serializable, IsString)
+
+
+newtype HeartbeatRequest = HeartbeatReq (GroupId, GenerationId, MemberId) deriving (Show, Eq, Serializable, Generic)
 
 newtype ReplicationFactor = ReplicationFactor Int16 deriving (Show, Eq, Num, Integral, Ord, Real, Enum, Serializable, Deserializable, Generic)
 
@@ -221,6 +241,7 @@ errorKafka OffsetMetadataTooLargeCode          = 12
 errorKafka OffsetsLoadInProgressCode           = 14
 errorKafka ConsumerCoordinatorNotAvailableCode = 15
 errorKafka NotCoordinatorForConsumerCode       = 16
+errorKafka UnknownMemberId                     = 25
 errorKafka TopicAlreadyExists                  = 36
 errorKafka UnsupportedCompressionType          = 76
 
@@ -241,6 +262,7 @@ data KafkaError = NoError -- ^ @0@ No error--it worked!
                 | OffsetsLoadInProgressCode -- ^ @14@ The broker returns this error code for an offset fetch request if it is still loading offsets (after a leader change for that offsets topic partition).
                 | ConsumerCoordinatorNotAvailableCode -- ^ @15@ The broker returns this error code for consumer metadata requests or offset commit requests if the offsets topic has not yet been created.
                 | NotCoordinatorForConsumerCode -- ^ @16@ The broker returns this error code if it receives an offset fetch or commit request for a consumer group that it is not a coordinator for.
+                | UnknownMemberId -- ^ @25@ The coordinator is not aware of this member. (Retriable: false)
                 | TopicAlreadyExists -- ^@36@ Topic with this name already exists.
                 | UnsupportedCompressionType -- ^@76@ The requesting client does not support the compression type of given partition.
                 deriving (Bounded, Enum, Eq, Generic, Show)
@@ -269,6 +291,7 @@ instance Deserializable KafkaError where
       14   -> return OffsetsLoadInProgressCode
       15   -> return ConsumerCoordinatorNotAvailableCode
       16   -> return NotCoordinatorForConsumerCode
+      25   -> return UnknownMemberId
       36   -> return TopicAlreadyExists
       76   -> return UnsupportedCompressionType
       _    -> fail $ "invalid error code: " ++ show x
@@ -302,6 +325,7 @@ apiKey MetadataRequest{} = ApiKey 3
 apiKey OffsetCommitRequest{} = ApiKey 8
 apiKey OffsetFetchRequest{} = ApiKey 9
 apiKey GroupCoordinatorRequest{} = ApiKey 10
+apiKey HeartbeatRequest{} = ApiKey 12
 apiKey CreateTopicsRequest{} = ApiKey 19
 apiKey DeleteTopicsRequest{} = ApiKey 20
 
@@ -315,6 +339,7 @@ instance Serializable RequestMessage where
   serialize (GroupCoordinatorRequest r) = serialize r
   serialize (CreateTopicsRequest r) = serialize r
   serialize (DeleteTopicsRequest r) = serialize r
+  serialize (HeartbeatRequest r) = serialize r
 
 instance Serializable Int64 where serialize = putWord64be . fromIntegral
 instance Serializable Int32 where serialize = putWord32be . fromIntegral
