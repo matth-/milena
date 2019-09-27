@@ -55,16 +55,16 @@ doRequest' correlationId h r = do
         unless (correlationId == correlationId') $ fail ("Expected " ++ show correlationId ++ " but got " ++ show correlationId')
         isolate (dataLength - 4) deserialize
 
-doRequest :: MonadIO m => ClientId -> CorrelationId -> Handle -> ReqResp (m a) -> m (Either String a)
-doRequest clientId correlationId h (MetadataRR req) = doRequest' correlationId h $ Request (correlationId, clientId, MetadataRequest req)
-doRequest clientId correlationId h (ProduceRR req)  = doRequest' correlationId h $ Request (correlationId, clientId, ProduceRequest req)
-doRequest clientId correlationId h (FetchRR req)    = doRequest' correlationId h $ Request (correlationId, clientId, FetchRequest req)
-doRequest clientId correlationId h (OffsetRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, OffsetRequest req)
-doRequest clientId correlationId h (HeartbeatRR req)= doRequest' correlationId h $ Request (correlationId, clientId, HeartbeatRequest req)
-doRequest clientId correlationId h (TopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, CreateTopicsRequest req)
-doRequest clientId correlationId h (DeleteTopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, DeleteTopicsRequest req)
-doRequest clientId correlationId h (OffsetCommitRR req) = doRequest' correlationId h $ Request (correlationId, clientId, OffsetCommitRequest req)
-doRequest clientId correlationId h (OffsetFetchRR req) = doRequest' correlationId h $ Request (correlationId, clientId, OffsetFetchRequest req)
+doRequest :: MonadIO m => ClientId -> CorrelationId -> ApiVersion -> Handle -> ReqResp (m a) -> m (Either String a)
+doRequest clientId correlationId apiVersion h (MetadataRR req) = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, MetadataRequest req)
+doRequest clientId correlationId apiVersion h (ProduceRR req)  = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, ProduceRequest req)
+doRequest clientId correlationId apiVersion h (FetchRR req)    = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, FetchRequest req)
+doRequest clientId correlationId apiVersion h (OffsetRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, OffsetRequest req)
+doRequest clientId correlationId apiVersion h (HeartbeatRR req)= doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, HeartbeatRequest req)
+doRequest clientId correlationId apiVersion h (TopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, CreateTopicsRequest req)
+doRequest clientId correlationId apiVersion h (DeleteTopicsRR req)   = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, DeleteTopicsRequest req)
+doRequest clientId correlationId apiVersion h (OffsetCommitRR req) = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, OffsetCommitRequest req)
+doRequest clientId correlationId apiVersion h (OffsetFetchRR req) = doRequest' correlationId h $ Request (correlationId, clientId, apiVersion, OffsetFetchRequest req)
 
 class Serializable a where
   serialize :: a -> Put
@@ -75,7 +75,22 @@ class Deserializable a where
 newtype GroupCoordinatorResponse = GroupCoordinatorResp (KafkaError, Broker) deriving (Show, Generic, Eq, Deserializable)
 
 newtype ApiKey = ApiKey Int16 deriving (Show, Eq, Deserializable, Serializable, Num, Integral, Ord, Real, Generic, Enum) -- numeric ID for API (i.e. metadata req, produce req, etc.)
-newtype ApiVersion = ApiVersion Int16 deriving (Show, Eq, Deserializable, Serializable, Num, Integral, Ord, Real, Generic, Enum)
+data ApiVersion = ApiVersion0
+                | ApiVersion1
+                | ApiVersion2
+                | ApiVersion3
+                | ApiVersion4
+                | ApiVersion5
+                | ApiVersion6
+                | ApiVersion7
+                | ApiVersion8
+                | ApiVersion9
+                | ApiVersion10
+                | ApiVersion11
+                deriving (Show, Eq, Ord, Generic, Enum)
+instance Serializable ApiVersion where serialize = putWord16be . fromIntegral . fromEnum
+instance Deserializable ApiVersion where deserialize = fmap (toEnum . fromIntegral) getWord16be
+
 newtype CorrelationId = CorrelationId Int32 deriving (Show, Eq, Deserializable, Serializable, Num, Integral, Ord, Real, Generic, Enum)
 newtype ClientId = ClientId KafkaString deriving (Show, Eq, Deserializable, Serializable, Generic, IsString)
 
@@ -218,7 +233,14 @@ newtype GroupCoordinatorRequest = GroupCoordinatorReq ConsumerGroup deriving (Sh
 newtype CreateTopicsRequest = CreateTopicsReq ([(TopicName, Partition, ReplicationFactor, [(Partition, Replicas)], [(KafkaString, Metadata)])], Timeout) deriving (Show, Eq, Serializable, Generic)
 newtype DeleteTopicsRequest = DeleteTopicsReq ([TopicName], Timeout) deriving (Show, Eq, Serializable, Generic)
 
-newtype OffsetCommitRequest = OffsetCommitReq (ConsumerGroup, [(TopicName, [(Partition, Offset, Time, Metadata)])]) deriving (Show, Eq, Serializable, Generic)
+data OffsetCommitRequest = OffsetCommitReq (ConsumerGroup, [(TopicName, [(Partition, Offset, Time, Metadata)])])
+                         | OffsetCommitReqV1 (ConsumerGroup, GenerationId, MemberId, [(TopicName, [(Partition, Offset, Time, Metadata)])])
+ deriving (Show, Eq, Generic)
+
+instance Serializable OffsetCommitRequest where
+  serialize (OffsetCommitReq r) = serialize r
+  serialize (OffsetCommitReqV1 r) = serialize r
+
 newtype OffsetFetchRequest = OffsetFetchReq (ConsumerGroup, [(TopicName, [Partition])]) deriving (Show, Eq, Serializable, Generic)
 newtype ConsumerGroup = ConsumerGroup KafkaString deriving (Show, Eq, Serializable, Deserializable, IsString, Generic)
 newtype Metadata = Metadata KafkaString deriving (Show, Eq, Serializable, Deserializable, IsString, Generic)
@@ -491,12 +513,12 @@ instance Deserializable KafkaError where
 
 instance Exception KafkaError
 
-newtype Request = Request (CorrelationId, ClientId, RequestMessage) deriving (Show, Eq, Generic)
+newtype Request = Request (CorrelationId, ClientId, ApiVersion, RequestMessage) deriving (Show, Eq, Generic)
 
 instance Serializable Request where
-  serialize (Request (correlationId, clientId, r)) = do
+  serialize (Request (correlationId, clientId, apiVersion, r)) = do
     serialize (apiKey r)
-    serialize (apiVersion r)
+    serialize apiVersion
     serialize correlationId
     serialize clientId
     serialize r
@@ -506,9 +528,6 @@ requestBytes x = runPut $ do
   putWord32be . fromIntegral $ B.length mr
   putByteString mr
     where mr = runPut $ serialize x
-
-apiVersion :: RequestMessage -> ApiVersion
-apiVersion _ = ApiVersion 0 -- everything is at version 0 right now
 
 apiKey :: RequestMessage -> ApiKey
 apiKey ProduceRequest{} = ApiKey 0

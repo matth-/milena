@@ -53,6 +53,8 @@ data KafkaState = KafkaState { -- | Name to use as a client ID.
                              , _stateTopicMetadata :: M.Map TopicName TopicMetadata
                                -- | Address cache
                              , _stateAddresses :: NonEmpty KafkaAddress
+                               -- | Api Version
+                             , _stateApiVersion :: ApiVersion
                              } deriving (Generic, Show)
 
 makeLenses ''KafkaState
@@ -149,6 +151,7 @@ mkKafkaState cid addy =
                M.empty
                M.empty
                (addy :| [])
+               ApiVersion0
 
 addKafkaAddress :: KafkaAddress -> KafkaState -> KafkaState
 addKafkaAddress = over stateAddresses . NE.nub .: NE.cons
@@ -167,18 +170,19 @@ tryKafka = (`catch` \e -> throwError $ KafkaIOException (e :: IOException))
 -- | Make a request, incrementing the `_stateCorrelationId`.
 makeRequest :: Kafka m => Handle -> ReqResp (m a) -> m a
 makeRequest h reqresp = do
-  (clientId, correlationId) <- makeIds
-  eitherResp <- tryKafka $ doRequest clientId correlationId h reqresp
+  (clientId, correlationId, apiVersion) <- makeIds
+  eitherResp <- tryKafka $ doRequest clientId correlationId apiVersion h reqresp
   case eitherResp of
     Left s -> throwError $ KafkaDeserializationError s
     Right r -> return r
   where
-    makeIds :: MonadState KafkaState m => m (ClientId, CorrelationId)
+    makeIds :: MonadState KafkaState m => m (ClientId, CorrelationId, ApiVersion)
     makeIds = do
       corid <- use stateCorrelationId
       stateCorrelationId += 1
       conid <- use stateName
-      return (ClientId conid, corid)
+      apiVers <- use stateApiVersion
+      return (ClientId conid, corid, apiVers)
 
 -- | Send a metadata request to any broker.
 metadata :: Kafka m => MetadataRequest -> m MetadataResponse
@@ -255,6 +259,13 @@ commitOffsetRequest consumerGroup topic partition offset =
    in OffsetCommitReq
         (consumerGroup, [(topic, [(partition, offset, time, metadata_)])])
 
+commitOffsetRequestV1 ::
+     ConsumerGroup -> TopicName -> Partition -> Offset -> GenerationId -> MemberId -> OffsetCommitRequest
+commitOffsetRequestV1 consumerGroup topic partition offset genId memId =
+  let time = -1
+      metadata_ = Metadata "milena"
+   in OffsetCommitReqV1
+        (consumerGroup, genId, memId, [(topic, [(partition, offset, time, metadata_)])])
 
 getTopicPartitionLeader :: Kafka m => TopicName -> Partition -> m Broker
 getTopicPartitionLeader t p = do
