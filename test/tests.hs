@@ -35,6 +35,7 @@ import Network.Kafka.Protocol (ProduceResponse(..),
                                Metadata(..),
                                TopicName(..),
                                HeartbeatResponse(..),
+                               ApiVersion(..)
                               )
 
 
@@ -232,6 +233,14 @@ specs = do
             getLastOffset EarliestTime 0 t
         getLastOff `shouldSatisfy` isRight
         getLastOff `shouldBe` (Right $ Offset 0)
+
+      it "commit using protocol v1" $ do
+          commitOff <- run $ do
+              stateApiVersion .= ApiVersion1
+              stateAddresses %= NE.cons ("localhost", 9092)
+              commitOffset (commitOffsetRequestV1 (ConsumerGroup "group1") t 0 (Offset 5) 10 "foo")
+          commitOff `shouldBe` Right (OffsetCommitResp [(t,[(Partition 0,NoError)])])
+
 
 prop :: Testable prop => String -> prop -> SpecWith ()
 prop s = it s . property
